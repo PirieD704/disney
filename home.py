@@ -12,18 +12,18 @@ app.config['MYSQL_DATABASE_DB'] = 'disney'
 app.config['MYSQL_DATABASE_HOST'] = '127.0.0.1'
 # user the mysql object's method "init_app" and pass it the flask object
 mysql.init_app(app)
-
+conn = mysql.connect()
+cursor = conn.cursor()
 app.secret_key = "HAOEA2342352LKT3049203ytO4htr130JSasdKLF239"
 
 @app.route('/')
 def index():
 	#set up a cursor object which is what the sql object uses to connect and run queries
-	cursor = mysql.connect().cursor()
 	#execute our query
 	cursor.execute("SELECT content FROM page_content WHERE page='home' AND location='header' AND status='1'")
 	header_text = cursor.fetchall()
 	print header_text
-	cursor2 = mysql.connect().cursor()
+	cursor2 = conn.cursor()
 	#execute our query
 	cursor2.execute("SELECT content, header_text, image_link FROM page_content WHERE page='home' AND location='body' AND status='1'")
 	body_stuff = cursor2.fetchall()
@@ -77,10 +77,10 @@ def admin_update():
 		body = request.form['body_text']
 		header = request.form['header']
 		image = request.form['image']
-		cursor = mysql.connect().cursor()
 		query = "INSERT INTO page_content VALUES (DEFAULT, 'home', '"+body+"',1,1,'left_block', NULL, '"+header+"', '"+image+"')"
 		print query
 		cursor.execute(query)
+		conn.commit()
 		return redirect('/admin_portal?success=Added')
 
 	# you have no ticket. no soup for you
