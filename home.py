@@ -25,11 +25,26 @@ def index():
 	print header_text
 	cursor2 = conn.cursor()
 	#execute our query
-	cursor2.execute("SELECT content, header_text, image_link FROM page_content WHERE page='home' AND location='body' AND status='1'")
+	cursor2.execute("SELECT content, header_text, image_link, id FROM page_content WHERE page='home' AND location='body' AND status='1'")
 	body_stuff = cursor2.fetchall()
-	print header_text
 	return render_template('index.html',
 		header_text = header_text, data = body_stuff)
+
+
+
+
+
+# This will control whenever someone clicks on a features image and bring them to the more information page
+@app.route('/features/<id>')
+def features(id):
+	query = "SELECT sup_image_link, header_text, content FROM page_content WHERE id=%s"
+	cursor.execute(query, (id))
+	data = cursor.fetchone()
+	return render_template('features.html', data = data)
+
+
+
+
 
 
 
@@ -46,6 +61,20 @@ def admin():
 	else:
 		return render_template('admin.html')
 
+
+
+
+# Logout you out, nice to have for convenience purposes while building
+@app.route('/logout')
+def logout():
+	session.clear()
+	return redirect('/admin?message=LoggedOut')
+
+
+
+
+
+
 # Make a new route called admin_submit. Add method POST so that the form can get here.
 @app.route('/admin_submit', methods=['GET', 'POST'])
 # define new route for the admin_submit
@@ -60,15 +89,32 @@ def admin_submit():
 	else:
 		return redirect('/admin?message=login_failed')
 
+
+
+
+
+
 @app.route('/admin_portal')
 def admin_portal():
 	#session variable 'username' exists... proceed
 	if 'username' in session:
-		return render_template('admin_portal.html')
+		cursor2 = conn.cursor()
+		#execute our query
+		cursor2.execute("SELECT content, header_text, image_link, location, id FROM page_content WHERE page='home' AND status='1'")
+		body_stuff = cursor2.fetchall()
+		return render_template('admin_portal.html',
+			#body_stuff is what it is here, home_page_content is what it is to the template
+			home_page_content = body_stuff)
 	# you have no ticket. no soup for you
 	else:
 		return redirect('/admin?message=You_Must_Log_In')
 
+
+
+
+
+
+# This controls the submissions from the admin portal page where you can add new content to the homepage
 @app.route('/admin_update', methods=['POST'])
 def admin_update():
 	# First, do you belong here?
@@ -76,8 +122,11 @@ def admin_update():
 		# ok, they are logged in. i will insert your stuff...
 		body = request.form['body_text']
 		header = request.form['header']
-		image = request.form['image']
-		query = "INSERT INTO page_content VALUES (DEFAULT, 'home', '"+body+"',1,1,'left_block', NULL, '"+header+"', '"+image+"')"
+		location = request.form['location']
+		image = request.files['image']
+		image.save('static/images/' + image.filename)
+		image.path = image.filename
+		query = "INSERT INTO page_content VALUES (DEFAULT, 'home', '"+body+"',1,1,'"+location+"', NULL, '"+header+"', '"+image.path+"')"
 		print query
 		cursor.execute(query)
 		conn.commit()
@@ -86,6 +135,50 @@ def admin_update():
 	# you have no ticket. no soup for you
 	else:
 		return redirect('/admin?message=You_Must_Log_In')
+
+
+
+
+
+
+@app.route('/edit/<id>', methods=['GET', 'POST'])
+def edit(id):
+	if request.method == 'GET':
+		query = "SELECT header_text,content,image_link,id,status,priority FROM page_content WHERE id = %s" % id
+		print query
+		cursor.execute(query)
+		data = cursor.fetchone()
+		return render_template('edit.html', data = data)
+	else:
+		header = request.form['header']
+		body = request.form['body_text']
+		image = request.form['image']
+		status = request.form['status']
+		priority = request.form['priority']
+		image.save('static/images/' + image.filename)
+		image.path = image.filename
+		print image.path
+		query = "UPDATE page_content SET header_text= %s, content= %s, image_link= %s, status= %s, priority =%s  WHERE id = %s"
+		cursor.execute(query, (header, body, image.path, status, priority, id))
+		conn.commit()
+		return redirect('/admin_portal?message=update_successful')
+		# Do the post stuff
+
+
+
+
+
+
+@app.route('/delete/<id>')
+def delete(id):
+	query = "DELETE FROM page_content WHERE id = %s" % id
+	cursor.execute(query)
+	conn.commit()
+	return redirect('/admin_portal?message=delete_successful')
+
+
+
+
 
 
 if __name__ == "__main__":
